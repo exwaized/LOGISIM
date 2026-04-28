@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LogiSim — Stochastic Logistics Simulation Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0b0d;
+  --bg2: #0f1114;
+  --bg3: #14181f;
+  --bg4: #1c2028;
+  --amber: #f5a623;
+  --amber-dim: #b87a18;
+  --amber-glow: rgba(245,166,35,0.12);
+  --teal: #1de9b6;
+  --teal-dim: rgba(29,233,182,0.15);
+  --red: #ff4d4d;
+  --red-dim: rgba(255,77,77,0.12);
+  --text: #e8e6e0;
+  --text2: #8a8880;
+  --text3: #4a4845;
+  --border: rgba(255,255,255,0.06);
+  --border2: rgba(255,255,255,0.1);
+  --mono: 'DM Mono', monospace;
+  --display: 'Syne', sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);overflow-x:hidden;cursor:none}
+
+/* custom cursor */
+.cursor{position:fixed;width:8px;height:8px;background:var(--amber);border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:transform .1s;mix-blend-mode:screen}
+.cursor-ring{position:fixed;width:28px;height:28px;border:1px solid var(--amber);border-radius:50%;pointer-events:none;z-index:9998;transform:translate(-50%,-50%);transition:transform .15s,width .2s,height .2s,opacity .2s;opacity:0.5}
+body:hover .cursor{opacity:1}
+
+/* nav */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:1.25rem 3rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);backdrop-filter:blur(12px);background:rgba(10,11,13,0.85)}
+.nav-logo{font-family:var(--display);font-weight:800;font-size:1.1rem;color:var(--text);letter-spacing:-0.02em}
+.nav-logo span{color:var(--amber)}
+.nav-links{display:flex;gap:2rem;list-style:none}
+.nav-links a{font-size:0.75rem;color:var(--text2);text-decoration:none;letter-spacing:0.08em;text-transform:uppercase;transition:color .2s}
+.nav-links a:hover{color:var(--amber)}
+.nav-cta{font-family:var(--mono);font-size:0.75rem;background:var(--amber);color:#000;padding:0.5rem 1.25rem;border:none;cursor:none;letter-spacing:0.05em;font-weight:500;transition:background .2s,transform .15s}
+.nav-cta:hover{background:#ffbe4a;transform:translateY(-1px)}
+
+/* hero */
+.hero{min-height:100vh;display:grid;grid-template-columns:1fr 1fr;position:relative;overflow:hidden;padding-top:80px}
+.hero-left{padding:6rem 3rem 4rem;display:flex;flex-direction:column;justify-content:center;position:relative;z-index:2}
+.hero-eyebrow{font-size:0.7rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--amber);margin-bottom:1.5rem;display:flex;align-items:center;gap:0.75rem}
+.hero-eyebrow::before{content:'';display:block;width:24px;height:1px;background:var(--amber)}
+.hero-h1{font-family:var(--display);font-size:clamp(2.8rem,4.5vw,4.2rem);font-weight:800;line-height:1.0;letter-spacing:-0.03em;color:var(--text);margin-bottom:1.5rem}
+.hero-h1 em{font-style:normal;color:var(--amber)}
+.hero-sub{font-size:0.85rem;color:var(--text2);line-height:1.8;max-width:420px;margin-bottom:2.5rem}
+.hero-actions{display:flex;gap:1rem;align-items:center;flex-wrap:wrap}
+.btn-primary{font-family:var(--mono);font-size:0.8rem;background:var(--amber);color:#000;padding:0.75rem 2rem;border:none;cursor:none;letter-spacing:0.05em;font-weight:500;transition:all .2s;display:inline-block;text-decoration:none}
+.btn-primary:hover{background:#ffbe4a;transform:translateY(-2px)}
+.btn-ghost{font-family:var(--mono);font-size:0.8rem;background:transparent;color:var(--text2);padding:0.75rem 2rem;border:1px solid var(--border2);cursor:none;letter-spacing:0.05em;transition:all .2s;text-decoration:none}
+.btn-ghost:hover{border-color:var(--amber);color:var(--amber)}
+.hero-stats{display:flex;gap:2.5rem;margin-top:3.5rem;padding-top:2rem;border-top:1px solid var(--border)}
+.hero-stat-val{font-family:var(--display);font-size:1.8rem;font-weight:700;color:var(--text);line-height:1}
+.hero-stat-label{font-size:0.65rem;color:var(--text2);letter-spacing:0.08em;text-transform:uppercase;margin-top:4px}
+
+/* canvas hero */
+.hero-right{position:relative;overflow:hidden}
+.hero-canvas-wrap{position:absolute;inset:0}
+canvas#hero-net{width:100%;height:100%}
+.hero-overlay-panel{position:absolute;bottom:3rem;right:3rem;background:var(--bg3);border:1px solid var(--border2);padding:1.25rem 1.5rem;min-width:240px}
+.panel-title{font-size:0.65rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--text3);margin-bottom:1rem}
+.panel-row{display:flex;justify-content:space-between;align-items:center;padding:0.35rem 0;border-bottom:1px solid var(--border)}
+.panel-row:last-child{border:none}
+.panel-key{font-size:0.72rem;color:var(--text2)}
+.panel-val{font-size:0.72rem;font-weight:500;color:var(--amber)}
+.panel-val.ok{color:var(--teal)}
+.panel-val.warn{color:#ff9a3c}
+.live-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--teal);margin-right:6px;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(0.8)}}
+
+/* ticker */
+.ticker{background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:0.6rem 0;overflow:hidden;white-space:nowrap}
+.ticker-inner{display:inline-flex;animation:ticker 28s linear infinite;gap:0}
+.ticker-item{font-size:0.7rem;color:var(--text2);padding:0 3rem;border-right:1px solid var(--border2)}
+.ticker-item span{color:var(--amber);margin-left:0.4rem}
+.ticker-item .up{color:var(--teal)}
+.ticker-item .dn{color:var(--red)}
+@keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
+/* sections */
+section{padding:6rem 3rem}
+.section-label{font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--amber);margin-bottom:1rem;display:flex;align-items:center;gap:0.75rem}
+.section-label::before{content:'';display:block;width:20px;height:1px;background:var(--amber)}
+.section-h2{font-family:var(--display);font-size:clamp(2rem,3vw,2.8rem);font-weight:800;letter-spacing:-0.02em;line-height:1.1;color:var(--text);margin-bottom:1rem}
+.section-sub{font-size:0.85rem;color:var(--text2);line-height:1.8;max-width:520px}
+
+/* problem section */
+.problem{background:var(--bg)}
+.problem-grid{display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:start;margin-top:4rem}
+.problem-left{}
+.problem-items{display:flex;flex-direction:column;gap:0}
+.prob-item{padding:1.5rem 0;border-bottom:1px solid var(--border);display:grid;grid-template-columns:3rem 1fr;gap:1rem;align-start:start}
+.prob-item:first-child{border-top:1px solid var(--border)}
+.prob-num{font-size:0.65rem;color:var(--text3);letter-spacing:0.05em;padding-top:2px}
+.prob-title{font-family:var(--display);font-size:1rem;font-weight:700;color:var(--text);margin-bottom:0.4rem}
+.prob-desc{font-size:0.78rem;color:var(--text2);line-height:1.7}
+.problem-terminal{background:var(--bg3);border:1px solid var(--border2);padding:1.5rem;font-size:0.72rem;line-height:2}
+.term-comment{color:var(--text3)}
+.term-key{color:var(--amber)}
+.term-val{color:var(--teal)}
+.term-warn{color:var(--red)}
+.term-cursor{display:inline-block;width:8px;height:14px;background:var(--amber);animation:blink 1s step-end infinite;vertical-align:middle}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* features */
+.features{background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);margin-top:4rem;border:1px solid var(--border)}
+.feat-card{background:var(--bg2);padding:2rem;transition:background .25s;position:relative;overflow:hidden}
+.feat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--amber);transform:scaleX(0);transform-origin:left;transition:transform .3s}
+.feat-card:hover{background:var(--bg3)}
+.feat-card:hover::before{transform:scaleX(1)}
+.feat-icon{width:36px;height:36px;border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;margin-bottom:1.25rem;font-size:0.9rem}
+.feat-title{font-family:var(--display);font-size:1rem;font-weight:700;color:var(--text);margin-bottom:0.6rem}
+.feat-desc{font-size:0.76rem;color:var(--text2);line-height:1.75}
+.feat-tag{display:inline-block;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;padding:2px 8px;background:var(--amber-glow);color:var(--amber);margin-top:1rem}
+
+/* how it works */
+.how{background:var(--bg)}
+.how-flow{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-top:4rem;position:relative}
+.how-flow::before{content:'';position:absolute;top:28px;left:14%;right:14%;height:1px;background:linear-gradient(90deg,var(--border2),var(--amber),var(--border2));z-index:0}
+.how-step{text-align:center;padding:0 1.5rem;position:relative;z-index:1}
+.how-num{width:56px;height:56px;border:1px solid var(--border2);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1.5rem;font-family:var(--display);font-size:1rem;font-weight:800;color:var(--amber);background:var(--bg);position:relative}
+.how-num::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:1px solid var(--amber-glow)}
+.how-title{font-family:var(--display);font-size:0.9rem;font-weight:700;color:var(--text);margin-bottom:0.6rem}
+.how-desc{font-size:0.73rem;color:var(--text2);line-height:1.7}
+
+/* metrics showcase */
+.metrics{background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.metrics-layout{display:grid;grid-template-columns:1fr 1.4fr;gap:4rem;margin-top:4rem;align-items:start}
+.metric-list{display:flex;flex-direction:column;gap:1rem}
+.metric-item{background:var(--bg3);border:1px solid var(--border);padding:1.25rem 1.5rem;cursor:none;transition:all .25s;border-left:2px solid transparent}
+.metric-item:hover,.metric-item.active{border-left-color:var(--amber);background:var(--bg4)}
+.metric-item-title{font-family:var(--display);font-size:0.85rem;font-weight:700;color:var(--text);margin-bottom:0.3rem}
+.metric-item-desc{font-size:0.72rem;color:var(--text2);line-height:1.6}
+.metrics-visual{background:var(--bg3);border:1px solid var(--border2);padding:2rem}
+.chart-title{font-size:0.65rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);margin-bottom:1.5rem}
+.fake-chart{position:relative;height:200px}
+.bar-group{display:flex;align-items:flex-end;height:100%;gap:12px;padding-top:1rem}
+.bar-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%}
+.bar-fill-wrap{flex:1;width:100%;display:flex;align-items:flex-end}
+.bar-fill-inner{width:100%;border-top:1px solid currentColor;transition:height 1s cubic-bezier(.4,0,.2,1)}
+.bar-label{font-size:0.62rem;color:var(--text2);white-space:nowrap}
+.bar-val{font-size:0.68rem;font-weight:500}
+
+/* policies */
+.policies{background:var(--bg)}
+.policy-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-top:4rem}
+.policy-card{border:1px solid var(--border);padding:2rem;position:relative;overflow:hidden;transition:border-color .25s}
+.policy-card:hover{border-color:var(--border2)}
+.policy-card-num{font-family:var(--display);font-size:3rem;font-weight:800;color:var(--border2);line-height:1;margin-bottom:1.5rem;transition:color .25s}
+.policy-card:hover .policy-card-num{color:var(--amber-glow)}
+.policy-card-badge{font-size:0.6rem;letter-spacing:0.12em;text-transform:uppercase;padding:3px 10px;margin-bottom:1rem;display:inline-block}
+.badge-static{background:rgba(138,136,128,0.15);color:var(--text2)}
+.badge-dynamic{background:var(--teal-dim);color:var(--teal)}
+.badge-priority{background:var(--amber-glow);color:var(--amber)}
+.policy-card-title{font-family:var(--display);font-size:1.2rem;font-weight:700;color:var(--text);margin-bottom:0.75rem}
+.policy-card-desc{font-size:0.76rem;color:var(--text2);line-height:1.75;margin-bottom:1.25rem}
+.policy-card-features{list-style:none;display:flex;flex-direction:column;gap:0.4rem}
+.policy-card-features li{font-size:0.72rem;color:var(--text2);padding-left:1rem;position:relative}
+.policy-card-features li::before{content:'→';position:absolute;left:0;color:var(--amber);font-size:0.65rem}
+
+/* sensitivity */
+.sensitivity{background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.sens-layout{display:grid;grid-template-columns:1fr 1fr;gap:4rem;margin-top:4rem;align-items:start}
+.sens-bars{display:flex;flex-direction:column;gap:0.75rem}
+.sens-bar-row{display:flex;align-items:center;gap:1rem}
+.sens-bar-label{font-size:0.72rem;color:var(--text2);min-width:140px}
+.sens-bar-track{flex:1;height:6px;background:var(--bg4);position:relative;overflow:visible}
+.sens-bar-fill{height:100%;position:relative;transition:width 1.2s cubic-bezier(.4,0,.2,1)}
+.sens-bar-fill::after{content:'';position:absolute;right:-4px;top:50%;transform:translateY(-50%);width:8px;height:8px;border-radius:50%;background:currentColor}
+.sens-bar-val{font-size:0.7rem;font-weight:500;min-width:44px;text-align:right}
+.sens-info{background:var(--bg3);border:1px solid var(--border);padding:2rem}
+.sens-insight{padding:1rem 0;border-bottom:1px solid var(--border);font-size:0.76rem;color:var(--text2);line-height:1.7}
+.sens-insight:last-child{border:none;padding-bottom:0}
+.sens-insight strong{color:var(--text);font-weight:500}
+
+/* cta */
+.cta-section{background:var(--bg);padding:8rem 3rem;text-align:center;position:relative;overflow:hidden}
+.cta-bg{position:absolute;inset:0;background:radial-gradient(ellipse 60% 50% at 50% 50%,rgba(245,166,35,0.04),transparent);pointer-events:none}
+.cta-h2{font-family:var(--display);font-size:clamp(2.5rem,5vw,4rem);font-weight:800;letter-spacing:-0.03em;color:var(--text);margin-bottom:1.25rem}
+.cta-sub{font-size:0.85rem;color:var(--text2);max-width:480px;margin:0 auto 2.5rem;line-height:1.8}
+.cta-btns{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap}
+.cta-footnote{margin-top:2rem;font-size:0.7rem;color:var(--text3)}
+
+/* footer */
+footer{border-top:1px solid var(--border);padding:2rem 3rem;display:flex;justify-content:space-between;align-items:center}
+.footer-logo{font-family:var(--display);font-weight:800;font-size:0.9rem;color:var(--text3)}
+.footer-logo span{color:var(--amber)}
+.footer-note{font-size:0.68rem;color:var(--text3)}
+
+/* animations */
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+.fade-up{opacity:0;animation:fadeUp .6s ease forwards}
+.delay-1{animation-delay:.1s}
+.delay-2{animation-delay:.2s}
+.delay-3{animation-delay:.3s}
+.delay-4{animation-delay:.4s}
+.delay-5{animation-delay:.55s}
+.delay-6{animation-delay:.7s}
+
+/* scrolled-in animation */
+.reveal{opacity:0;transform:translateY(20px);transition:opacity .7s ease,transform .7s ease}
+.reveal.visible{opacity:1;transform:translateY(0)}
+
+/* scan line effect */
+.scanlines{position:fixed;inset:0;pointer-events:none;z-index:9997;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);opacity:0.4}
+</style>
+</head>
+<body>
+
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursor-ring"></div>
+<div class="scanlines"></div>
+
+<nav>
+  <div class="nav-logo">Logi<span>Sim</span></div>
+  <ul class="nav-links">
+    <li><a href="#problem">Problem</a></li>
+    <li><a href="#features">Engine</a></li>
+    <li><a href="#policies">Policies</a></li>
+    <li><a href="#sensitivity">Analysis</a></li>
+  </ul>
+  <button class="nav-cta">Launch Simulator →</button>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-left">
+    <div class="hero-eyebrow fade-up delay-1"><span class="live-dot"></span>Live Stochastic Simulation</div>
+    <h1 class="hero-h1 fade-up delay-2">Stop guessing.<br>Start <em>simulating</em><br>your fleet.</h1>
+    <p class="hero-sub fade-up delay-3">LogiSim runs 1,000 Monte Carlo simulations of your logistics operation — before a single vehicle moves. Model uncertainty, compare dispatch policies, and find optimal parameters in minutes.</p>
+    <div class="hero-actions fade-up delay-4">
+      <a href="#" class="btn-primary">Run your first simulation →</a>
+      <a href="#features" class="btn-ghost">Explore the engine</a>
+    </div>
+    <div class="hero-stats fade-up delay-5">
+      <div><div class="hero-stat-val">1,000×</div><div class="hero-stat-label">MC runs / scenario</div></div>
+      <div><div class="hero-stat-val">3</div><div class="hero-stat-label">dispatch policies</div></div>
+      <div><div class="hero-stat-val">p99</div><div class="hero-stat-label">tail risk modeling</div></div>
+    </div>
+  </div>
+  <div class="hero-right fade-up delay-3">
+    <div class="hero-canvas-wrap">
+      <canvas id="hero-net"></canvas>
+    </div>
+    <div class="hero-overlay-panel">
+      <div class="panel-title"><span class="live-dot"></span>Live simulation output</div>
+      <div class="panel-row"><span class="panel-key">Active policy</span><span class="panel-val" id="pp-policy">Dynamic Rerouting</span></div>
+      <div class="panel-row"><span class="panel-key">Mean delay</span><span class="panel-val" id="pp-mean">4.2 min</span></div>
+      <div class="panel-row"><span class="panel-key">p95 delay</span><span class="panel-val warn" id="pp-p95">18.7 min</span></div>
+      <div class="panel-row"><span class="panel-key">SLA compliance</span><span class="panel-val ok" id="pp-sla">91.4%</span></div>
+      <div class="panel-row"><span class="panel-key">Cost proxy</span><span class="panel-val" id="pp-cost">8.3k units</span></div>
+      <div class="panel-row"><span class="panel-key">Scenario</span><span class="panel-val">Peak Demand</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- TICKER -->
+<div class="ticker">
+  <div class="ticker-inner" id="ticker-inner"></div>
+</div>
+
+<!-- PROBLEM -->
+<section class="problem" id="problem">
+  <div class="section-label reveal">The problem</div>
+  <h2 class="section-h2 reveal">Logistics operations<br>run blind.</h2>
+  <div class="problem-grid">
+    <div class="problem-left reveal">
+      <div class="problem-items">
+        <div class="prob-item">
+          <div class="prob-num">01</div>
+          <div>
+            <div class="prob-title">Uncertainty ignored in planning</div>
+            <div class="prob-desc">Routing software optimizes for average conditions. Real operations fail in the tail — the p95 scenario that causes cascading SLA breaches.</div>
+          </div>
+        </div>
+        <div class="prob-item">
+          <div class="prob-num">02</div>
+          <div>
+            <div class="prob-title">Policies never compared before adoption</div>
+            <div class="prob-desc">Should you reroute at 20% delay risk or 35%? This decision has serious cost implications, but no tool lets you simulate it before committing.</div>
+          </div>
+        </div>
+        <div class="prob-item">
+          <div class="prob-num">03</div>
+          <div>
+            <div class="prob-title">Parameter sensitivity unknown</div>
+            <div class="prob-desc">Is 2 extra vehicles worth the cost, or is traffic variability the real bottleneck? Managers optimize the wrong lever because no data exists.</div>
+          </div>
+        </div>
+        <div class="prob-item">
+          <div class="prob-num">04</div>
+          <div>
+            <div class="prob-title">Optimization done manually or not at all</div>
+            <div class="prob-desc">Buffer time is set once and forgotten. Finding the optimal buffer × reroute-threshold pair would take months of real-world A/B tests.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="reveal">
+      <div class="problem-terminal">
+        <div class="term-comment"># without LogiSim — dispatch log, day 47</div>
+        <br>
+        <div><span class="term-key">08:14</span> VEH-03 dispatched → Route R7 (static)</div>
+        <div><span class="term-key">09:22</span> <span class="term-warn">BREAKDOWN</span> — VEH-03 stalled, Rt 45</div>
+        <div><span class="term-key">09:23</span> <span class="term-warn">SLA BREACH</span> — ORD-112 Express (+34 min)</div>
+        <div><span class="term-key">09:31</span> <span class="term-warn">SLA BREACH</span> — ORD-118 Express (+28 min)</div>
+        <div><span class="term-key">09:44</span> Queue overflow — 6 orders pending</div>
+        <div><span class="term-key">10:02</span> <span class="term-warn">PENALTY</span> — ₹12,400 logged</div>
+        <br>
+        <div class="term-comment"># dispatcher note: "didn't see this coming"</div>
+        <br>
+        <div class="term-comment"># with LogiSim — same scenario, simulated</div>
+        <br>
+        <div><span class="term-key">p95 delay</span> <span class="term-val">→ 31.2 min</span> (known in advance)</div>
+        <div><span class="term-key">breakdown risk</span> <span class="term-val">→ 12% probability</span></div>
+        <div><span class="term-key">optimal policy</span> <span class="term-val">→ Priority Dispatch</span></div>
+        <div><span class="term-key">buffer rec.</span> <span class="term-val">→ 20% (+saves ₹8.2k avg)</span></div>
+        <div><span class="term-key">status</span> <span class="term-val">→ SLA maintained</span> <span class="term-cursor"></span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features" id="features">
+  <div class="section-label reveal">The engine</div>
+  <h2 class="section-h2 reveal">Eight layers.<br>One simulation.</h2>
+  <p class="section-sub reveal">Every layer is engineered for the exact failure mode dispatchers face — not a generic optimization toy.</p>
+  <div class="feat-grid reveal">
+    <div class="feat-card">
+      <div class="feat-icon">∿</div>
+      <div class="feat-title">Stochastic Data Layer</div>
+      <div class="feat-desc">7 synthetic routes with realistic variability parameters. Orders generated with Poisson demand spikes, time-window types, and priority scoring — no idealized inputs.</div>
+      <div class="feat-tag">Lognormal · Poisson · Bernoulli</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">⚡</div>
+      <div class="feat-title">Scenario Engine</div>
+      <div class="feat-desc">Four preset scenarios — Normal, Peak Demand, Storm, Crisis — with full parameter control. Seeded RNG ensures reproducibility across all 1,000 Monte Carlo runs.</div>
+      <div class="feat-tag">Reproducible seeds · 4 presets</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">⟳</div>
+      <div class="feat-title">Event-Driven Simulation</div>
+      <div class="feat-desc">Vehicles modeled as resources, deliveries as queued processes. Captures queueing delays, breakdown cascades, dispatch timing, and capacity constraints simultaneously.</div>
+      <div class="feat-tag">1,000 MC runs · Event queue</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">◈</div>
+      <div class="feat-title">Policy Engine</div>
+      <div class="feat-desc">Three distinct dispatch strategies — static, dynamic rerouting, priority-based — simulated under identical conditions so comparisons are causal, not correlational.</div>
+      <div class="feat-tag">3 policies · Side-by-side</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">◎</div>
+      <div class="feat-title">Advanced Metrics Layer</div>
+      <div class="feat-desc">Mean delay, p95, p99, SLA compliance rate, and a cost proxy that combines fuel penalty, missed-delivery cost, and breakdown overhead into a single score.</div>
+      <div class="feat-tag">p95 · p99 · SLA · Cost proxy</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">⊞</div>
+      <div class="feat-title">Grid Search Optimizer</div>
+      <div class="feat-desc">81-configuration sweep over buffer % × reroute threshold. Scores each by 0.6×p95 + 0.4×cost and ranks configurations in a heatmap — no manual tuning.</div>
+      <div class="feat-tag">81 configs · Weighted score</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">↕</div>
+      <div class="feat-title">Sensitivity Analysis</div>
+      <div class="feat-desc">Each parameter swept across its full range, held against a fixed baseline. Ranks variables by their actual p95 impact — tells you which lever actually moves outcomes.</div>
+      <div class="feat-tag">OAT method · Impact ranking</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">▨</div>
+      <div class="feat-title">Interactive Visualization</div>
+      <div class="feat-desc">Scenario selector, policy comparison charts, delay distribution curves, cost-vs-delay tradeoff scatter, optimization heatmap, and a timestamped event log — all interactive.</div>
+      <div class="feat-tag">Charts · Heatmap · Event log</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">✦</div>
+      <div class="feat-title">Runs in the Browser</div>
+      <div class="feat-desc">Zero backend. The entire stochastic engine — seeded RNG, Monte Carlo runner, grid search, sensitivity sweep — executes client-side in milliseconds.</div>
+      <div class="feat-tag">No backend · Instant results</div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how" id="how">
+  <div class="section-label reveal">How it works</div>
+  <h2 class="section-h2 reveal">From parameters<br>to decision.</h2>
+  <div class="how-flow reveal">
+    <div class="how-step">
+      <div class="how-num">01</div>
+      <div class="how-title">Configure</div>
+      <div class="how-desc">Set traffic variability, demand level, fleet size, breakdown probability, and select a scenario preset.</div>
+    </div>
+    <div class="how-step">
+      <div class="how-num">02</div>
+      <div class="how-title">Simulate</div>
+      <div class="how-desc">The engine runs 1,000 stochastic trials, each sampling from Lognormal, Poisson, and Bernoulli distributions.</div>
+    </div>
+    <div class="how-step">
+      <div class="how-num">03</div>
+      <div class="how-title">Compare</div>
+      <div class="how-desc">All three dispatch policies run against the same scenario. Delay curves, SLA rates, and cost proxies surface side-by-side.</div>
+    </div>
+    <div class="how-step">
+      <div class="how-num">04</div>
+      <div class="how-title">Optimize</div>
+      <div class="how-desc">Grid search finds the best buffer × reroute combination. Sensitivity analysis tells you which variable matters most.</div>
+    </div>
+  </div>
+</section>
+
+<!-- METRICS SHOWCASE -->
+<section class="metrics" id="metrics">
+  <div class="section-label reveal">Metrics layer</div>
+  <h2 class="section-h2 reveal">Not just average delay.<br>The full distribution.</h2>
+  <div class="metrics-layout reveal">
+    <div class="metric-list">
+      <div class="metric-item active" onclick="selectMetric(this,0)">
+        <div class="metric-item-title">Mean delay</div>
+        <div class="metric-item-desc">Average delay across all 1,000 simulated runs — the expected-case baseline. Useful but incomplete.</div>
+      </div>
+      <div class="metric-item" onclick="selectMetric(this,1)">
+        <div class="metric-item-title">p95 delay</div>
+        <div class="metric-item-desc">The delay exceeded only 5% of the time. This is what sets SLA contract risk — the tail, not the mean.</div>
+      </div>
+      <div class="metric-item" onclick="selectMetric(this,2)">
+        <div class="metric-item-title">SLA compliance rate</div>
+        <div class="metric-item-desc">% of deliveries completing within their time window across all runs. Broken down by Express, Standard, Economy.</div>
+      </div>
+      <div class="metric-item" onclick="selectMetric(this,3)">
+        <div class="metric-item-title">Cost proxy</div>
+        <div class="metric-item-desc">Composite score: fuel/time penalty + missed-delivery penalty + breakdown overhead. Enables cost-vs-delay tradeoff analysis.</div>
+      </div>
+    </div>
+    <div class="metrics-visual">
+      <div class="chart-title" id="chart-title">Delay distribution — Static vs Dynamic vs Priority</div>
+      <div class="fake-chart">
+        <div class="bar-group" id="bar-group"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- POLICIES -->
+<section class="policies" id="policies">
+  <div class="section-label reveal">Policy engine</div>
+  <h2 class="section-h2 reveal">Three strategies.<br>One answer.</h2>
+  <p class="section-sub reveal">Run all three under identical stochastic conditions. The comparison is causal, not correlational.</p>
+  <div class="policy-cards reveal">
+    <div class="policy-card">
+      <div class="policy-card-num">01</div>
+      <div class="policy-card-badge badge-static">Static</div>
+      <div class="policy-card-title">Static Routing</div>
+      <div class="policy-card-desc">Fixed vehicle-to-order assignment. No mid-operation adaptation. This is what most small logistics operations actually run — your baseline.</div>
+      <ul class="policy-card-features">
+        <li>Lowest operational overhead</li>
+        <li>Predictable dispatch sequence</li>
+        <li>Vulnerable to congestion cascades</li>
+        <li>Highest SLA breach risk in volatile conditions</li>
+      </ul>
+    </div>
+    <div class="policy-card">
+      <div class="policy-card-num">02</div>
+      <div class="policy-card-badge badge-dynamic">Dynamic</div>
+      <div class="policy-card-title">Dynamic Rerouting</div>
+      <div class="policy-card-desc">If modeled delay risk on a route exceeds the configurable threshold, the vehicle is reassigned. Captures the value of active dispatch intelligence.</div>
+      <ul class="policy-card-features">
+        <li>Configurable reroute threshold (5–50%)</li>
+        <li>Reduces tail-risk exposure</li>
+        <li>Higher operational complexity</li>
+        <li>Best for high-traffic variability scenarios</li>
+      </ul>
+    </div>
+    <div class="policy-card">
+      <div class="policy-card-num">03</div>
+      <div class="policy-card-badge badge-priority">Priority</div>
+      <div class="policy-card-title">Priority Dispatch</div>
+      <div class="policy-card-desc">Before any vehicle moves, the entire order queue is reordered by delivery value and time-window urgency. High-value Express orders go first.</div>
+      <ul class="policy-card-features">
+        <li>Protects high-value SLAs first</li>
+        <li>Improves revenue-weighted compliance</li>
+        <li>May delay low-priority Economy orders</li>
+        <li>Best for mixed-priority fleets</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- SENSITIVITY -->
+<section class="sensitivity" id="sensitivity">
+  <div class="section-label reveal">Sensitivity analysis</div>
+  <h2 class="section-h2 reveal">Know which lever<br>actually moves outcomes.</h2>
+  <div class="sens-layout reveal">
+    <div>
+      <div style="font-size:0.75rem;color:var(--text2);margin-bottom:1.5rem;line-height:1.8">Each parameter is swept across its full range while all others are held fixed. The p95 delay delta reveals which variable is your true bottleneck.</div>
+      <div class="sens-bars" id="sens-bars-demo"></div>
+    </div>
+    <div class="sens-info">
+      <div class="chart-title">What the analysis tells you</div>
+      <div class="sens-insight"><strong>Traffic variability</strong> dominates p95 delay. Investing in real-time traffic intelligence returns more than adding fleet capacity in storm scenarios.</div>
+      <div class="sens-insight"><strong>Demand level</strong> drives mean delay but not p95 — peak demand increases average wait, but tail risk stays manageable with dynamic rerouting.</div>
+      <div class="sens-insight"><strong>Fleet size</strong> has diminishing returns past 6 vehicles for typical 8–12 order demand. The queue empties before extra capacity is useful.</div>
+      <div class="sens-insight"><strong>Buffer time %</strong> reduces SLA breach risk but increases cost proxy linearly. Optimal is found at 15–20% in most non-crisis scenarios.</div>
+      <div class="sens-insight"><strong>Breakdown probability</strong> matters most in Crisis scenarios — above 15%, the cost penalty term dominates all other variables.</div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <div class="cta-bg"></div>
+  <div class="reveal">
+    <h2 class="cta-h2">Your fleet.<br>Simulated first.</h2>
+    <p class="cta-sub">Configure your scenario, select your policy, and get p95 delay, SLA compliance, and cost proxy — in under 100ms.</p>
+    <div class="cta-btns">
+      <a href="#" class="btn-primary">Launch LogiSim →</a>
+      <a href="#features" class="btn-ghost">Read the docs</a>
+    </div>
+    <p class="cta-footnote">No backend. No signup. Runs entirely in your browser.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-logo">Logi<span>Sim</span></div>
+  <div class="footer-note">Stochastic logistics simulation engine · Monte Carlo · Policy optimization · Sensitivity analysis</div>
+</footer>
+
+<script>
+// cursor
+const cur = document.getElementById('cursor');
+const ring = document.getElementById('cursor-ring');
+document.addEventListener('mousemove', e => {
+  cur.style.left = e.clientX + 'px';
+  cur.style.top = e.clientY + 'px';
+  setTimeout(() => {
+    ring.style.left = e.clientX + 'px';
+    ring.style.top = e.clientY + 'px';
+  }, 60);
+});
+document.querySelectorAll('a,button,.metric-item,.policy-card,.feat-card').forEach(el => {
+  el.addEventListener('mouseenter', () => { ring.style.width='44px'; ring.style.height='44px'; ring.style.opacity='0.8'; });
+  el.addEventListener('mouseleave', () => { ring.style.width='28px'; ring.style.height='28px'; ring.style.opacity='0.5'; });
+});
+
+// ticker
+const tickerData = [
+  ['VEH-03 → ORD-112','Static','SLA breach +22min'],['VEH-07 → ORD-224','Dynamic','On time ✓'],
+  ['Fleet utilization','','87.4%'],['p95 delay — Storm','','38.1 min'],
+  ['SLA compliance — Priority','','93.2%'],['Grid search best','','Buffer 15% · Reroute 20%'],
+  ['Breakdown events — Crisis','','12 of 80 runs'],['Cost proxy — Dynamic','','7.9k units'],
+  ['Mean delay — Normal','','3.8 min'],['Sensitivity top factor','','Traffic variability'],
+  ['VEH-01 → ORD-047','Priority','Rerouted → R3 ✓'],['p99 delay — Peak','','52.7 min'],
+];
+const inner = document.getElementById('ticker-inner');
+const html = tickerData.map(([a,b,c])=>`<span class="ticker-item">${a}${b?` <span class="up">[${b}]</span>`:''} →<span> ${c}</span></span>`).join('');
+inner.innerHTML = html + html;
+
+// hero canvas — route network
+const canvas = document.getElementById('hero-net');
+const ctx = canvas.getContext('2d');
+function resizeCanvas() {
+  canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+  canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+const nodes = [];
+const edges = [];
+const packets = [];
+
+function initNetwork() {
+  nodes.length = 0; edges.length = 0; packets.length = 0;
+  const w = canvas.offsetWidth, h = canvas.offsetHeight;
+  const nodeCount = 12;
+  const depot = {x: w*0.5, y: h*0.5, r: 8, label:'HUB', type:'hub'};
+  nodes.push(depot);
+  for (let i = 0; i < nodeCount; i++) {
+    const angle = (i/nodeCount)*Math.PI*2 + Math.random()*0.4;
+    const dist = 80 + Math.random()*120;
+    nodes.push({
+      x: w*0.5 + Math.cos(angle)*dist*(0.7+Math.random()*0.6),
+      y: h*0.5 + Math.sin(angle)*dist*(0.7+Math.random()*0.6),
+      r: 4 + Math.random()*3,
+      label: `D${i+1}`,
+      type: Math.random()<0.3?'express':'standard',
+      active: false
+    });
+  }
+  for (let i = 1; i < nodes.length; i++) {
+    edges.push({from:0, to:i, delay:Math.random()});
+    if (Math.random()<0.3 && i>1) {
+      const j = 1 + Math.floor(Math.random()*(nodes.length-1));
+      if (j!==i) edges.push({from:i, to:j, delay:Math.random()});
+    }
+  }
+}
+
+function spawnPacket() {
+  const e = edges[Math.floor(Math.random()*edges.length)];
+  const rev = Math.random()<0.4;
+  packets.push({
+    from: rev?e.to:e.from, to: rev?e.from:e.to,
+    t: 0, speed: 0.003+Math.random()*0.004,
+    color: Math.random()<0.3?'#f5a623':'#1de9b6',
+    size: 2+Math.random()*2
+  });
+}
+
+let animFrame;
+function drawNetwork() {
+  const w = canvas.offsetWidth, h = canvas.offsetHeight;
+  ctx.clearRect(0,0,w,h);
+
+  // grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+  ctx.lineWidth = 0.5;
+  for (let x=0;x<w;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke()}
+  for (let y=0;y<h;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke()}
+
+  // edges
+  edges.forEach(e => {
+    const a = nodes[e.from], b = nodes[e.to];
+    ctx.beginPath();
+    ctx.moveTo(a.x,a.y);
+    ctx.lineTo(b.x,b.y);
+    ctx.strokeStyle = 'rgba(245,166,35,0.12)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  });
+
+  // packets
+  for (let i = packets.length-1; i>=0; i--) {
+    const p = packets[i];
+    p.t += p.speed;
+    if (p.t>=1){packets.splice(i,1);continue}
+    const a = nodes[p.from], b = nodes[p.to];
+    const x = a.x + (b.x-a.x)*p.t;
+    const y = a.y + (b.y-a.y)*p.t;
+    ctx.beginPath();
+    ctx.arc(x,y,p.size,0,Math.PI*2);
+    ctx.fillStyle = p.color;
+    ctx.fill();
+    // trail
+    ctx.beginPath();
+    ctx.moveTo(x,y);
+    const bx = a.x+(b.x-a.x)*Math.max(0,p.t-0.06);
+    const by = a.y+(b.y-a.y)*Math.max(0,p.t-0.06);
+    ctx.lineTo(bx,by);
+    ctx.strokeStyle = p.color+'66';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  // nodes
+  nodes.forEach((n,i) => {
+    const isHub = n.type==='hub';
+    ctx.beginPath();
+    ctx.arc(n.x,n.y,n.r+(isHub?2:0),0,Math.PI*2);
+    ctx.fillStyle = isHub?'#f5a623':n.type==='express'?'#1de9b6':'rgba(245,166,35,0.4)';
+    ctx.fill();
+    if (isHub) {
+      ctx.beginPath();
+      ctx.arc(n.x,n.y,n.r+8,0,Math.PI*2);
+      ctx.strokeStyle='rgba(245,166,35,0.2)';
+      ctx.lineWidth=1;
+      ctx.stroke();
+    }
+    ctx.fillStyle='rgba(255,255,255,0.5)';
+    ctx.font=`9px 'DM Mono', monospace`;
+    ctx.fillText(n.label, n.x+n.r+3, n.y+3);
+  });
+
+  if (Math.random()<0.06) spawnPacket();
+  animFrame = requestAnimationFrame(drawNetwork);
+}
+
+// live panel update
+const policyNames = ['Static Routing','Dynamic Rerouting','Priority Dispatch'];
+const means = [6.1,4.2,5.3], p95s = [24.3,18.7,21.1], slas = [84.2,91.4,88.7], costs = [9.1,8.3,8.8];
+let pIdx = 1;
+setInterval(()=>{
+  pIdx=(pIdx+1)%3;
+  document.getElementById('pp-policy').textContent=policyNames[pIdx];
+  document.getElementById('pp-mean').textContent=means[pIdx].toFixed(1)+' min';
+  document.getElementById('pp-p95').textContent=p95s[pIdx].toFixed(1)+' min';
+  document.getElementById('pp-sla').textContent=slas[pIdx].toFixed(1)+'%';
+  document.getElementById('pp-cost').textContent=costs[pIdx].toFixed(1)+'k units';
+},2400);
+
+// sensitivity bars demo
+const sensData = [
+  {label:'Traffic variability', val:18.4, color:'#ff4d4d', w:100},
+  {label:'Demand level', val:11.2, color:'#f5a623', w:61},
+  {label:'Breakdown prob.', val:9.7, color:'#f5a623', w:53},
+  {label:'Buffer time %', val:7.3, color:'#1de9b6', w:40},
+  {label:'Fleet size', val:4.1, color:'#1de9b6', w:22},
+];
+const sensContainer = document.getElementById('sens-bars-demo');
+sensData.forEach(s => {
+  const row = document.createElement('div');
+  row.className = 'sens-bar-row';
+  row.innerHTML = `<span class="sens-bar-label">${s.label}</span><div class="sens-bar-track" style="flex:1"><div class="sens-bar-fill" style="width:0%;background:${s.color};color:${s.color}" data-w="${s.w}"></div></div><span class="sens-bar-val" style="color:${s.color}">±${s.val.toFixed(1)}m</span>`;
+  sensContainer.appendChild(row);
+});
+
+// bar chart for metrics showcase
+const metricData = [
+  {title:'Delay distribution — all policies',bars:[
+    {label:'Static',vals:[{h:45,c:'#378ADD'},{h:72,c:'#185FA5'},{h:85,c:'#0C447C'}],labels:['mean','p95','p99']},
+    {label:'Dynamic',vals:[{h:38,c:'#1D9E75'},{h:58,c:'#0F6E56'},{h:70,c:'#085041'}],labels:['mean','p95','p99']},
+    {label:'Priority',vals:[{h:42,c:'#BA7517'},{h:65,c:'#854F0B'},{h:78,c:'#633806'}],labels:['mean','p95','p99']},
+  ]},
+  {title:'p95 delay by scenario',bars:[
+    {label:'Normal',vals:[{h:30,c:'#1D9E75'},{h:48,c:'#1D9E75'},{h:55,c:'#1D9E75'}],labels:['S1','D2','P3']},
+    {label:'Peak',vals:[{h:55,c:'#BA7517'},{h:42,c:'#BA7517'},{h:50,c:'#BA7517'}],labels:['S1','D2','P3']},
+    {label:'Storm',vals:[{h:80,c:'#ff4d4d'},{h:60,c:'#ff4d4d'},{h:70,c:'#ff4d4d'}],labels:['S1','D2','P3']},
+  ]},
+  {title:'SLA compliance % by policy',bars:[
+    {label:'Static',vals:[{h:84,c:'#378ADD'}],labels:['84.2%']},
+    {label:'Dynamic',vals:[{h:91,c:'#1D9E75'}],labels:['91.4%']},
+    {label:'Priority',vals:[{h:89,c:'#BA7517'}],labels:['88.7%']},
+  ]},
+  {title:'Cost proxy by policy (k units)',bars:[
+    {label:'Static',vals:[{h:91,c:'#378ADD'}],labels:['9.1k']},
+    {label:'Dynamic',vals:[{h:83,c:'#1D9E75'}],labels:['8.3k']},
+    {label:'Priority',vals:[{h:88,c:'#BA7517'}],labels:['8.8k']},
+  ]},
+];
+
+function renderBars(idx) {
+  const md = metricData[idx];
+  document.getElementById('chart-title').textContent = md.title;
+  const bg = document.getElementById('bar-group');
+  bg.innerHTML='';
+  const groups = md.bars;
+  groups.forEach(g => {
+    const wrap = document.createElement('div');
+    wrap.style.cssText='flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%';
+    g.vals.forEach((v,i) => {
+      const bw = document.createElement('div');
+      bw.style.cssText='flex:1;width:100%;display:flex;align-items:flex-end';
+      const bf = document.createElement('div');
+      bf.style.cssText=`width:100%;height:0%;background:${v.c};transition:height 0.8s cubic-bezier(.4,0,.2,1);border-top:1px solid ${v.c}`;
+      bw.appendChild(bf);
+      wrap.appendChild(bw);
+      setTimeout(()=>{bf.style.height=v.h+'%'},50);
+    });
+    const lbl = document.createElement('div');
+    lbl.style.cssText='font-size:0.62rem;color:#8a8880;white-space:nowrap;margin-top:4px';
+    lbl.textContent=g.label;
+    wrap.appendChild(lbl);
+    const val = document.createElement('div');
+    val.style.cssText='font-size:0.65rem;color:#f5a623';
+    val.textContent=g.vals.map((v,i)=>g.labels[i]).join(' · ');
+    wrap.appendChild(val);
+    bg.appendChild(wrap);
+  });
+}
+renderBars(0);
+
+function selectMetric(el, idx) {
+  document.querySelectorAll('.metric-item').forEach(m=>m.classList.remove('active'));
+  el.classList.add('active');
+  renderBars(idx);
+}
+
+// reveal on scroll
+const reveals = document.querySelectorAll('.reveal');
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.add('visible');
+      // animate sens bars when visible
+      if (e.target.querySelector && e.target.querySelector('[data-w]')) {
+        e.target.querySelectorAll('[data-w]').forEach(b=>{
+          setTimeout(()=>{b.style.width=b.dataset.w+'%'},200);
+        });
+      }
+    }
+  });
+}, {threshold:0.15});
+reveals.forEach(r=>observer.observe(r));
+
+// delayed sens bar animation
+setTimeout(()=>{
+  document.querySelectorAll('[data-w]').forEach(b=>{
+    if (b.closest('.reveal.visible')) b.style.width=b.dataset.w+'%';
+  });
+},500);
+
+// init
+initNetwork();
+drawNetwork();
+window.addEventListener('resize', ()=>{resizeCanvas();initNetwork();});
+</script>
+</body>
+</html>
